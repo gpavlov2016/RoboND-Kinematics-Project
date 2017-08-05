@@ -104,12 +104,13 @@ In case the demo fails, close all three terminal windows and rerun the script.
 [image2]: ./misc_images/theta1.png
 [image3]: ./misc_images/kuka-side.png
 [image4]: ./misc_images/misc2.png
+[image5]: ./misc_images/dh-annotated.jpg
 
 
 ### Kinematic Analysis
-#### 1. The kinematics analysis was performed with the help of Rviz by attaching a reference to each frame according to DH convention
+#### 1. The kinematics analysis was performed using the annotated figure of the robot below. The figure shows the frames attached to each joint and labels from the DH parameter table.
 
-![alt text][image1]
+![alt text][image5]
 
 #### 2. Here are the resulting DH parameters derived from the kinematics analysis
 
@@ -123,12 +124,44 @@ Links | alpha(i-1) | a(i-1) | d(i-1) | theta(i)
 5->6 | - pi/2 | 0 | 0 | q6
 6->EE | 0 | 0 | 0.303 | 0
 
-The homogeneous transform between subsequent links (i=1..7)were generated using the following matrix structure as defined by the DH method:
+Using the DH table above the indivitual transformation matrices were defined between each two subsequent links (i=1..7) using this general structure:
 ```
 T(i-1)_i = Matrix([[               cos(qi),                -sin(qi),                0,                  a(i-1)],
-                  [sin(qi)*cos(alpha(i-1), cos(qi)*cos(alpha(i-1)), -sin(alpha(i-1)),     -sin(alpha(i-1))*d1],
-                  [sin(qi)*sin(alpha(i-1), cos(qi)*sin(alpha(i-1)),  cos(alpha(i-1)),      cos(alpha(i-1))*d1],
-                  [                     0,                       0,                0,                      1]])
+                   [sin(qi)*cos(alpha(i-1), cos(qi)*cos(alpha(i-1)), -sin(alpha(i-1)),     -sin(alpha(i-1))*di],
+                   [sin(qi)*sin(alpha(i-1), cos(qi)*sin(alpha(i-1)),  cos(alpha(i-1)),      cos(alpha(i-1))*di],
+                   [                     0,                       0,                0,                       1]])
+```
+Which results in those individual HT matrices:
+```
+T0_1 = Matrix([[            cos(q1),            -sin(q1),            0,              a0],
+               [sin(q1)*cos(alpha0), cos(q1)*cos(alpha0), -sin(alpha0), -sin(alpha0)*d1],
+               [sin(q1)*sin(alpha0), cos(q1)*sin(alpha0),  cos(alpha0),  cos(alpha0)*d1],
+               [                  0,                   0,            0,               1]])
+T1_2 = Matrix([[            cos(q2),            -sin(q2),            0,              a1],
+               [sin(q2)*cos(alpha1), cos(q2)*cos(alpha1), -sin(alpha1), -sin(alpha1)*d2],
+               [sin(q2)*sin(alpha1), cos(q2)*sin(alpha1),  cos(alpha1),  cos(alpha1)*d2],
+               [                  0,                   0,            0,               1]])
+T2_3 = Matrix([[            cos(q3),            -sin(q3),            0,              a2],
+               [sin(q3)*cos(alpha2), cos(q3)*cos(alpha2), -sin(alpha2), -sin(alpha2)*d3],
+               [sin(q3)*sin(alpha2), cos(q3)*sin(alpha2),  cos(alpha2),  cos(alpha2)*d3],
+               [                  0,                   0,            0,               1]])
+T3_4 = Matrix([[            cos(q4),            -sin(q4),            0,              a3],
+               [sin(q4)*cos(alpha3), cos(q4)*cos(alpha3), -sin(alpha3), -sin(alpha3)*d4],
+               [sin(q4)*sin(alpha3), cos(q4)*sin(alpha3),  cos(alpha3),  cos(alpha3)*d4],
+               [                  0,                   0,            0,               1]])
+T4_5 = Matrix([[            cos(q5),            -sin(q5),            0,              a4],
+               [sin(q5)*cos(alpha4), cos(q5)*cos(alpha4), -sin(alpha4), -sin(alpha4)*d5],
+               [sin(q5)*sin(alpha4), cos(q5)*sin(alpha4),  cos(alpha4),  cos(alpha4)*d5],
+               [                  0,                   0,            0,               1]])
+T5_6 = Matrix([[            cos(q6),            -sin(q6),            0,              a5],
+               [sin(q6)*cos(alpha5), cos(q6)*cos(alpha5), -sin(alpha5), -sin(alpha5)*d6],
+               [sin(q6)*sin(alpha5), cos(q6)*sin(alpha5),  cos(alpha5),  cos(alpha5)*d6],
+               [                  0,                   0,            0,               1]])
+T6_G = Matrix([[            cos(q7),            -sin(q7),            0,              a6],
+               [sin(q7)*cos(alpha6), cos(q7)*cos(alpha6), -sin(alpha6), -sin(alpha6)*d7],
+               [sin(q7)*sin(alpha6), cos(q7)*sin(alpha6),  cos(alpha6),  cos(alpha6)*d7],
+               [                  0,                   0,            0,               1]])
+
 ```
 After the individual HTs were calculated the base_link-->gripper combined HT was calculated by multiplying the subsequent HT matrices:
 ```
@@ -178,8 +211,11 @@ theta5 = atan2(sqrt(x**2 + z**2), y)
 theta6 = atan2(-R3_6[1,1], R3_6[1,0])
 ```
 
-### Optimization
-Some of the inverse kinematics operations take considerable amount of compute resources therefore most of the matrices that do not change during execution, such as the T0_1, T1_2 etc..., are precomputed outside of `handle_calculate_IK` function so they run only once when the server is started, saving around 0.8sec per trajectory. 
+### Discussion of results
+During the implementation I encountered several issues as described below:
+* Debugging - to validate the HT matrices correctness I evaluated the matrices with all theta (qi) angles equal to 0 and compared to the "Absolute Position" field in Rviz when the angles are also set to 0.
+* Multiple solutions - since the solution for the theta4-6 angles is not unique it can not be compared with known answer therefore I evaluated the HT matrix from base to gripper at the calculated theta values and compared with the required pose of the gripper. 
+* Optimization - some of the inverse kinematics operations take considerable amount of compute resources therefore most of the matrices that do not change during execution, such as the T0_1, T1_2 etc..., are precomputed outside of `handle_calculate_IK` function so they run only once when the server is started, saving around 0.8sec per trajectory. 
 
 ### And finally the robot in action
 ![alt text][image4]
