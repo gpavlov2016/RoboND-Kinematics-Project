@@ -98,3 +98,91 @@ There is no loopback implemented yet, so you need to close all the terminal wind
 
 In case the demo fails, close all three terminal windows and rerun the script.
 
+[//]: # (Image References)
+
+[image1]: ./misc_images/misc1.png
+[image2]: ./misc_images/theta1.png
+[image3]: ./misc_images/kuka-side.png
+[image4]: ./misc_images/misc2.png
+
+
+### Kinematic Analysis
+#### 1. The kinematics analysis was performed with the help of Rviz by attaching a reference to each frame according to DH convention
+
+![alt text][image1]
+
+#### 2. Here are the resulting DH parameters derived from the kinematics analysis
+
+Links | alpha(i-1) | a(i-1) | d(i-1) | theta(i)
+--- | --- | --- | --- | ---
+0->1 | 0 | 0 | 0.75 | q1
+1->2 | - pi/2 | 0.35 | 0 | -pi/2 + q2
+2->3 | 0 | 1.25 | 0 | q3
+3->4 | - pi/2 | -0.054 | 1.5 | q4
+4->5 | pi/2 | 0 | 0 | q5
+5->6 | - pi/2 | 0 | 0 | q6
+6->EE | 0 | 0 | 0.303 | 0
+
+The homogeneous transform between subsequent links (i=1..7)were generated using the following matrix structure as defined by the DH method:
+```
+T(i-1)_i = Matrix([[               cos(qi),                -sin(qi),                0,                  a(i-1)],
+                  [sin(qi)*cos(alpha(i-1), cos(qi)*cos(alpha(i-1)), -sin(alpha(i-1)),     -sin(alpha(i-1))*d1],
+                  [sin(qi)*sin(alpha(i-1), cos(qi)*sin(alpha(i-1)),  cos(alpha(i-1)),      cos(alpha(i-1))*d1],
+                  [                     0,                       0,                0,                      1]])
+```
+After the individual HTs were calculated the base_link-->gripper combined HT was calculated by multiplying the subsequent HT matrices:
+```
+T0_G = T0_1*T1_2*T2_3*T3_4*T4_5*T5_6*T6_G
+```
+
+#### 3. Decoupling of Inverse Kinematics problem into Inverse Position Kinematics and inverse Orientation Kinematics
+
+KR210 robot has spherical wrist (the last 3 revolute joints axes intersect in a single point) therefore the IK problem can be decoupled to Position problem and Orientation problem. For the inverse position problem the first step is to calculate the wrist center (joint4) by subtracting  the rotated length of link 6 from the gripper required position:
+```
+nx = Rot_G[0,2]
+ny = Rot_G[1,2]
+nz = Rot_G[2,2]
+d = 0.303
+# WC - Wrist Center
+wx = px - d*nx
+wy = py - d*ny
+wz = pz - d*nz
+
+```
+Given the required position of the wrist center, the first three angles can be calculated using trigonometry starting with theta1 by projecting the wrist center to x-y plane as follows:
+
+![alt text][image2]
+
+For theta2 and theta3 we use a triangle formed by J2, J3 and J5(WC). Following image visualizes the angle and link definitions:
+
+![alt text][image3]
+
+The last three are theta4, theta4 and theta6 and those angles affect only the orientation of the gripper. Here the HTs we calculated previously are coming handy. We first find the rotation matrix from frame3 to frame6:
+```
+R0_3 = T0_1[0:3,0:3]*T1_2[0:3,0:3]*T2_3[0:3,0:3]
+R3_6 = R0_3.inv("LU") * Rot_G
+```
+Where:
+R0_3  - Rotation matrix from frame0 to frame3
+T0_1  - Homogenous Transform matrix from frame0 to frame1
+Rot_G - Rotation matrix from frame0 to gripper (frame6)
+R3_6  - Rotation matrix from frame3 to frame6
+
+Now we can extract the last three theta values using Euler angles using the method described here: http://www.staff.city.ac.uk/~sbbh653/publications/euler.pdf
+```
+x = R3_6[0,2]
+y = R3_6[1,2]
+z = R3_6[2,2]
+theta4 = atan2(z, -x)
+theta5 = atan2(sqrt(x**2 + z**2), y)
+theta6 = atan2(-R3_6[1,1], R3_6[1,0])
+```
+
+### Optimization
+Some of the inverse kinematics operations take considerable amount of compute resources therefore most of the matrices that do not change during execution, such as the T0_1, T1_2 etc..., are precomputed outside of `handle_calculate_IK` function so they run only once when the server is started, saving around 0.8sec per trajectory. 
+
+### And finally the robot in action
+![alt text][image4]
+
+- 
+
