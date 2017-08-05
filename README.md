@@ -162,11 +162,11 @@ The last three are theta4, theta4 and theta6 and those angles affect only the or
 R0_3 = T0_1[0:3,0:3]*T1_2[0:3,0:3]*T2_3[0:3,0:3]
 R3_6 = R0_3.inv("LU") * Rot_G
 ```
-Where:
-R0_3  - Rotation matrix from frame0 to frame3
-T0_1  - Homogenous Transform matrix from frame0 to frame1
-Rot_G - Rotation matrix from frame0 to gripper (frame6)
-R3_6  - Rotation matrix from frame3 to frame6
+Where:  
+R0_3  - Rotation matrix from frame0 to frame3  
+T0_1  - Homogenous Transform matrix from frame0 to frame1  
+Rot_G - Rotation matrix from frame0 to gripper (frame6)  
+R3_6  - Rotation matrix from frame3 to frame6  
 
 Now we can extract the last three theta values using Euler angles using the method described here: http://www.staff.city.ac.uk/~sbbh653/publications/euler.pdf
 ```
@@ -183,6 +183,4 @@ Some of the inverse kinematics operations take considerable amount of compute re
 
 ### And finally the robot in action
 ![alt text][image4]
-
-- 
 
